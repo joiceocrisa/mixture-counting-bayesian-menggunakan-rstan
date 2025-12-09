@@ -1,0 +1,85 @@
+---
+title: "Mixture Counting"
+author: "Joice Ocrisa"
+---
+
+```{r setup, include=FALSE}
+source("Mixture Counting1.R")
+library(rstan)
+library(tidyverse)
+
+rstan_options(auto_write = TRUE)
+options(mc.cores = parallel::detectCores())
+
+```
+
+```{r Data}
+y <- c(1,2,2,3,3,3,4,4,4,4,5,5,5,6,6,7)
+N <- length(y)
+
+data_list <- list(
+  N = N,
+  y = y
+)
+```
+
+```{r Fit Model}
+fit_norm  <- stan(model_code = normal_code, data=data_list, iter=3000, chains=4)
+fit_gamma <- stan(model_code = gamma_code,  data=data_list, iter=3000, chains=4)
+fit_exp   <- stan(model_code = exp_code,    data=data_list, iter=3000, chains=4)
+```
+
+```{r ekstrak logpdf}
+pN <- rstan::extract(fit_norm)
+pG <- rstan::extract(fit_gamma)
+pE <- rstan::extract(fit_exp)
+
+logpdf_Norm <- colMeans(pN$logpdf)
+logpdf_Gam <- colMeans(pG$logpdf)
+logpdf_Eks <- colMeans(pE$logpdf)
+```
+
+```{r Negative LogLikelihood}
+NegativeLL_Norm <- -sum(logpdf_Norm)
+NegativeLL_Gam <- -sum(logpdf_Gam)
+NegativeLL_Eks <- -sum(logpdf_Eks)
+
+cat("NORMAL - Negative Log Likelihood =", NegativeLL_Norm, "\n")
+cat("GAMMA - Negative Log Likelihood =", NegativeLL_Gam, "\n")
+cat("EKSPONENSIAL - Negative Log Likelihood =", NegativeLL_Eks, "\n")
+```
+```{r PDF}
+pdf_N <- exp(logpdf_Norm)
+pdf_G <- exp(logpdf_Gam)
+pdf_E <- exp(logpdf_Eks)
+```
+
+```{r Ranking}
+rank_matrix <- apply(
+  cbind(pdf_N, pdf_G, pdf_E), 1,
+  function(x) rank(-x, ties.method="average")
+)
+
+rank_matrix <- t(rank_matrix)
+rank_total <- colSums(rank_matrix)
+
+rank_total
+```
+```{r Hasil}
+model_rank <- rank(rank_total, ties.method = "first")
+
+Hasil <- data.frame(
+  Model = c("Normal", "Gamma", "Exponential"),
+  NLL = c(NegativeLL_Norm, NegativeLL_Gam, NegativeLL_Eks),
+  Rank_Score = rank_total,
+  Final_Rank = model_rank
+)
+
+print("Hasil yang diperoleh adalah sebagai berikut.")
+print(Hasil)
+```
+
+```{r Model Terbaik}
+cat("Model terbaik dengan menggunakan mixture-counting adalah",
+Hasil$Model[Hasil$Final_Rank == 1])
+```
