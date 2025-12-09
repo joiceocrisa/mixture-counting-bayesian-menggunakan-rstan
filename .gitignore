@@ -47,3 +47,6 @@ po/*~
 
 # RStudio Connect folder
 rsconnect/
+
+# ignore file yang tidak ingin dipush
+Mixture Counting2.R
